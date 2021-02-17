@@ -62,22 +62,25 @@ process (clk, reset)
 			output_reg <= (others=>'0');
 			data_count_reg <= (others=>'0');
 			tx_reg<='1';
+			n_reg<= (others=>'0');
 		elsif(clk'event and clk='1') then
 			state_reg<= state_next;
 			buffer_reg <= buffer_next;
 			output_reg <= output_next;
 			data_count_reg <= data_count_next;
 			tx_reg<=tx_next;
+			n_reg<= n_next;
 		end if;
 	end process;
 
-	process( state_reg,buffer_reg,tick,tx_data,datain) 
+	process( state_reg,buffer_reg,n_reg,output_reg,data_count_reg,tick,tx_data,datain,tx_reg) 
 	begin
 		n_next<= n_reg;
 		state_next<= state_reg;
 		tx_done<= '0';
 		output_next<= output_reg;
 		data_count_next<= data_count_reg;
+		tx_next<= tx_reg;
 		case state_reg is
 		
 			when idle =>
@@ -104,35 +107,34 @@ process (clk, reset)
 			when data =>
 				tx_next<=output_next(0);
 				if( tick='1')then
-				if(n_reg="1111") then
+					if(n_reg="1111") then
 					
-					output_next<= '0' & output_reg(7 downto 1);
-					n_next<= "0000";
-					if(data_count_reg="1111") then
-						state_next<= stop;
-						--n_next<= "0000";
+						output_next<= '0' & output_reg(7 downto 1);
+						n_next<= "0000";
+						if(data_count_reg="0111") then
+							state_next<= stop;
+							--n_next<= "0000";
+						else
+							data_count_next<= data_count_reg+1;
+							state_next<= data;
+						end if;
 					else
-						data_count_next<= data_count_reg+1;
 						state_next<= data;
+						n_next<= n_reg+1;
 					end if;
-				else
-					state_next<= data;
-					n_next<= n_reg+1;
-					
 				end if;
-				end if;
+				
 			when stop =>
 				tx_next<= '1';
 				if( tick='1')then
-				if(n_reg="1111") then
+						if(n_reg="1111") then
+							tx_done<= '1';
+							state_next<= idle;
+						else
+							state_next<= stop;
+							n_next<= n_reg+1;
 					
-					tx_done<= '1';
-					state_next<= idle;
-				else
-					state_next<= stop;
-					n_next<= n_reg+1;
-					
-				end if;
+						end if;
 				end if;
 			
 		end case;
